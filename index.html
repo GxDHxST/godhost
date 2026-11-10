@@ -396,7 +396,6 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
   var G={x:0,y:1600},sensorsOn=false,gotOri=false,isIOS=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
   function sensors(){if(sensorsOn)return;sensorsOn=true;addEventListener('deviceorientation',tilt);addEventListener('devicemotion',motion)}
   function askSensors(){
-    if(!window.DeviceOrientationEvent)return;
     if(isIOS){DeviceOrientationEvent.requestPermission().then(function(s){if(s==='granted')sensors()}).catch(function(){});
       if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function')DeviceMotionEvent.requestPermission().catch(function(){})}
     else sensors();
@@ -404,14 +403,20 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
   if(!isIOS)askSensors();
   function setG(x,y){var a=((screen.orientation&&screen.orientation.angle)||window.orientation||0)*Math.PI/180,c=Math.cos(a),s=Math.sin(a);G.x=x*c+y*s;G.y=-x*s+y*c}
   function tilt(e){if(e.gamma==null||e.beta==null)return;gotOri=true;setG(Math.sin(e.gamma*Math.PI/180)*1600,Math.sin(e.beta*Math.PI/180)*1600)}
-  var peaks=[];
+  var peaks=[],lastG=null,dbg=/[?&]sensors/.test(location.search)?{ori:0,mot:0,acc:0,jerk:0,beta:0,gamma:0,shakes:0}:null;
   function motion(e){
-    var g=e.accelerationIncludingGravity,a=e.acceleration;
+    var g=e.accelerationIncludingGravity,a=e.acceleration,m=0,j=0;
     if(!gotOri&&g&&g.x!=null){var k=1600/9.81,sg=isIOS?-1:1;setG(-g.x*k*sg,g.y*k*sg)}
-    var m=a&&a.x!=null?Math.hypot(a.x,a.y,a.z):(g&&g.x!=null?Math.abs(Math.hypot(g.x,g.y,g.z)-9.81):0);
-    if(m>17){var now=Date.now();if(!peaks.length||now-peaks[peaks.length-1]>90)peaks.push(now);peaks=peaks.filter(function(t){return now-t<900});
-      if(peaks.length>=3){peaks=[];onShake()}}
+    if(a&&a.x!=null)m=Math.hypot(a.x,a.y||0,a.z||0);
+    if(g&&g.x!=null){if(lastG)j=Math.hypot(g.x-lastG.x,(g.y||0)-lastG.y,(g.z||0)-lastG.z);lastG={x:g.x,y:g.y||0,z:g.z||0};if(!m)m=Math.abs(Math.hypot(g.x,g.y||0,g.z||0)-9.81)}
+    if(dbg){dbg.mot++;dbg.acc=Math.max(dbg.acc*.97,m);dbg.jerk=Math.max(dbg.jerk*.97,j)}
+    if(m>12||j>10){var now=Date.now();if(!peaks.length||now-peaks[peaks.length-1]>70)peaks.push(now);peaks=peaks.filter(function(t){return now-t<1000});
+      if(peaks.length>=3){peaks=[];if(dbg)dbg.shakes++;onShake()}}
   }
+  if(dbg){var box=document.createElement('pre');box.style.cssText='position:fixed;left:8px;bottom:8px;z-index:9;margin:0;font:11px/1.4 monospace;color:var(--muted);pointer-events:none';document.body.appendChild(box);
+    addEventListener('deviceorientation',function(e){dbg.ori++;dbg.beta=e.beta;dbg.gamma=e.gamma});
+    setInterval(function(){box.textContent='orientation events: '+dbg.ori+'  beta '+(dbg.beta==null?'null':(+dbg.beta).toFixed(0))+'  gamma '+(dbg.gamma==null?'null':(+dbg.gamma).toFixed(0))+
+      '\nmotion events: '+dbg.mot+'  acc '+dbg.acc.toFixed(1)+'  jerk '+dbg.jerk.toFixed(1)+'\nshakes: '+dbg.shakes+'  sensors on: '+sensorsOn+'  ios: '+isIOS+'\ngravity: '+G.x.toFixed(0)+', '+G.y.toFixed(0)},250)}
   function onShake(){if(!onHome())return;if(spill){kick(500);return}spillStart(true)}
 
   /* ---------- godhost on the loose: double tap, tilt or drag; goes home by itself once it lies still ---------- */
@@ -533,8 +538,10 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
   function emptyTarget(t){return !t.closest('a,button,.ball,.ch')}
   addEventListener('mousedown',function(e){if(e.detail>1&&emptyTarget(e.target))e.preventDefault()});
   addEventListener('pointerdown',function(e){
-    if(!emptyTarget(e.target)||!onHome()||spill)return;var now=Date.now();clicks=clicks.filter(function(t){return now-t<1200});clicks.push(now);
-    if(clicks.length>=3){clicks=[];askSensors();spillStart(false)}
+    if(!onHome())return;
+    if(spill&&!spill.homing&&e.pointerType==='touch'){clicks=[];spillHome();return}   /* phone: any tap brings letters back */
+    if(!emptyTarget(e.target))return;var now=Date.now();clicks=clicks.filter(function(t){return now-t<1200});clicks.push(now);
+    if(clicks.length>=3){clicks=[];if(spill){if(!spill.homing)spillHome()}else{askSensors();spillStart(false)}}
   });
 
   addEventListener('hashchange',function(){if(ball)goHome(true);if(spill)spillHome(true);if(running)finish(running);arm()});
