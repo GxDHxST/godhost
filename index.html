@@ -401,6 +401,9 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
     else sensors();
   }
   if(!isIOS)askSensors();
+  /* iPhone: motion access can only be asked after a tap (Apple rule) — ask on the first tap on empty space */
+  var askedIOS=false;
+  addEventListener('click',function(e){if(isIOS&&!askedIOS&&!sensorsOn&&!e.target.closest('a,button')){askedIOS=true;askSensors()}});
   function setG(x,y){var a=((screen.orientation&&screen.orientation.angle)||window.orientation||0)*Math.PI/180,c=Math.cos(a),s=Math.sin(a);G.x=x*c+y*s;G.y=-x*s+y*c}
   function tilt(e){if(e.gamma==null||e.beta==null)return;gotOri=true;setG(Math.sin(e.gamma*Math.PI/180)*1600,Math.sin(e.beta*Math.PI/180)*1600)}
   var peaks=[],lastG=null,dbg=/[?&]sensors/.test(location.search)?{ori:0,mot:0,acc:0,jerk:0,beta:0,gamma:0,shakes:0}:null;
@@ -496,7 +499,7 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
       }
     }
     card.style.visibility='hidden';
-    spill={b:bodies,last:performance.now(),calm:0};
+    spill={b:bodies,last:performance.now(),calm:0,start:Date.now()};
     kick(fromShake?420:160);
     requestAnimationFrame(spillStep);
   }
@@ -539,9 +542,10 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
   addEventListener('mousedown',function(e){if(e.detail>1&&emptyTarget(e.target))e.preventDefault()});
   addEventListener('pointerdown',function(e){
     if(!onHome())return;
+    if(spill&&Date.now()-spill.start<1600){clicks=[];return}   /* let them fall first: ignore taps right after the spill */
     if(spill&&!spill.homing&&e.pointerType==='touch'){clicks=[];spillHome();return}   /* phone: any tap brings letters back */
     if(!emptyTarget(e.target))return;var now=Date.now();clicks=clicks.filter(function(t){return now-t<1200});clicks.push(now);
-    if(clicks.length>=3){clicks=[];if(spill){if(!spill.homing)spillHome()}else{askSensors();spillStart(false)}}
+    if(clicks.length>=3){clicks=[];if(spill){if(!spill.homing)spillHome()}else spillStart(false)}
   });
 
   addEventListener('hashchange',function(){if(ball)goHome(true);if(spill)spillHome(true);if(running)finish(running);arm()});
