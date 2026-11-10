@@ -115,12 +115,39 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
 .ball.home{transition:transform .6s cubic-bezier(.2,.8,.2,1)}
 .ch{position:fixed;left:0;top:0;z-index:5;text-align:center;pointer-events:none;will-change:transform;white-space:pre}
 
-/* ice: selected text grows icicles and shivers */
+/* ice: selected text grows icicles, then the letters (not the selection) shiver */
 ::selection{background:var(--ice);color:var(--fg)}
-.icicle{position:absolute;background:var(--ice);clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:50% 0;transform:scaleY(0);pointer-events:none}
+.icicle{position:absolute;background:var(--ice);clip-path:polygon(0 0,50% 0,100% 0,75% 50%,50% 100%,25% 50%);transform-origin:50% 0;transform:scaleY(0);pointer-events:none}
+.iced{color:transparent!important}
+.iced::selection{color:transparent}
+.icecopy{position:absolute;margin:0;pointer-events:none;user-select:none;-webkit-user-select:none}
 @keyframes shiver{0%,100%{transform:translate(0,0)}25%{transform:translate(.5px,-.3px)}50%{transform:translate(-.45px,.35px)}75%{transform:translate(.3px,.25px)}}
 .frozen{animation:shiver .13s linear infinite}
 @media (prefers-reduced-motion:reduce){.frozen{animation:none}}
+
+/* web 1.0 idle: the page slowly turns into a 1999 homepage */
+.w1 body{background:#000 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='7' cy='9' r='1' fill='%23fff'/%3E%3Ccircle cx='41' cy='27' r='.8' fill='%23ff0'/%3E%3Ccircle cx='23' cy='49' r='1.2' fill='%23fff'/%3E%3C/svg%3E")}
+body{transition:background-color 2s}
+.w2 #v-home .card{font-family:"Comic Sans MS","Comic Neue","Times New Roman",cursive!important}
+.w2 #v-home .card *{font-family:inherit!important}
+.w3 #v-home .rows .n,.w3 #v-home .rows .p,.w3 #v-home .meta .logo{animation:rainbow 1.6s linear infinite;font-weight:700}
+.w3 #v-home .meta .logo{font-size:22px;text-shadow:2px 2px 0 #f0f}
+@keyframes rainbow{0%{color:#f00}17%{color:#f80}33%{color:#ff0}50%{color:#0f0}67%{color:#0ff}83%{color:#f0f}100%{color:#f00}}
+.w4 #v-home .buy{background:#c0c0c0;color:#000!important;border:2px outset #fff;padding:3px 8px;font:700 12px Arial,sans-serif!important;text-transform:uppercase;animation:blinky .7s steps(1) infinite}
+@keyframes blinky{50%{background:#ff0;color:#f00!important}}
+.w5 #v-home .buy::before{content:"\27A4\27A4 ";color:#f00;animation:arrows .5s steps(1) infinite}
+@keyframes arrows{50%{color:#ff0}}
+.w5 #v-home .rows.list::before{background:#ff0;width:3px}
+.w6 #v-home .meta .grp span,.w6 #v-home .meta .grp a{color:#0ff!important;text-decoration:underline}
+.w1 #v-home .meta .grp a,.w1 #v-home .meta .grp span{color:#88f}
+.web1x{position:fixed;left:0;right:0;z-index:4;pointer-events:none;font:700 14px "Times New Roman",serif;text-align:center}
+.web1x.mq{top:calc(14px + env(safe-area-inset-top,0px));background:#00f;color:#ff0;overflow:hidden;white-space:nowrap;padding:4px 0;border-top:2px ridge #c0c0c0;border-bottom:2px ridge #c0c0c0}
+.web1x.mq span{display:inline-block;padding-left:100%;animation:mq 9s linear infinite}
+@keyframes mq{to{transform:translateX(-100%)}}
+.web1x.ct{bottom:calc(18px + env(safe-area-inset-bottom,0px));color:#0f0;font:12px "Courier New",monospace;display:grid;gap:10px;justify-items:center}
+.web1x.ct b{background:#000;border:1px inset #888;padding:2px 6px;letter-spacing:2px}
+.web1x.ct i{font:700 11px Arial,sans-serif;color:#000;background:repeating-linear-gradient(45deg,#ff0 0 8px,#000 8px 16px);padding:4px 10px}
+.web1x.ct i span{background:#ff0;padding:0 4px}
 </style>
 </head>
 <body>
@@ -252,7 +279,7 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
   var card=home.querySelector('.card');
   var logo=home.querySelector('.meta .logo');
   var grp=home.querySelector('.meta .grp');
-  var IDLE=15000, timer=null, running=null, ball=null, order=['leaves','typing','pixel','sleep'], nextI=0;
+  var IDLE=15000, timer=null, running=null, ball=null, order=['leaves','typing','pixel','sleep','web1'], nextI=0;
   try{nextI=+(localStorage.getItem('gh-idle')||0)%order.length}catch(e){}
   var css=function(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()};
   var wait=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
@@ -400,6 +427,19 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
         z.animate([{transform:'translate(0,0)',opacity:0},{transform:'translate('+dx*.4+'px,-18px)',opacity:.9,offset:.3},{transform:'translate('+dx+'px,-60px) rotate(12deg)',opacity:0}],{duration:3200,easing:'ease-out'}).onfinish=function(){this.effect.target.remove()};
         await wait(1100);
       }
+    },
+
+    /* 5. the page slowly turns into a 1999 homepage: stars, Comic Sans, rainbow, blinking buttons, arrows, marquee, counter */
+    web1:async function(ctl){
+      var de=document.documentElement,steps=['w1','w2','w3','w4','w5','w6'],extra=[];
+      ctl.cleanup.push(function(){steps.forEach(function(c){de.classList.remove(c)});extra.forEach(function(e){e.remove()})});
+      for(var i=0;i<steps.length;i++){
+        if(!ctl.alive)return;de.classList.add(steps[i]);
+        if(steps[i]==='w4'){var mq=document.createElement('div');mq.className='web1x mq';mq.innerHTML='<span>★ ДОБРО ПОЖАЛОВАТЬ НА САЙТ GODHOST!!! ★ ЛУЧШИЕ СКРИПТЫ ДЛЯ 3DS MAX ★ ЖМИ КУПИТЬ!!! ★ ОБНОВЛЕНО 09.11.1999 ★</span>';document.body.appendChild(mq);extra.push(mq)}
+        if(steps[i]==='w6'){var ct=document.createElement('div');ct.className='web1x ct';ct.innerHTML='<b>ВЫ ПОСЕТИТЕЛЬ № 000'+(100+Math.floor(Math.random()*899))+'</b><i><span>САЙТ В РАЗРАБОТКЕ</span></i>';document.body.appendChild(ct);extra.push(ct)}
+        await wait(1100);
+      }
+      while(ctl.alive)await wait(500);
     }
   };
 
@@ -561,38 +601,66 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
   });
 
 
-  /* ---------- ice: selection looks like ice, so icicles grow under it and the letters shiver ---------- */
-  var iceLayer=null,iceT=null,frozenEls=[],shiverT=null;
-  function thaw(){
-    clearTimeout(shiverT);frozenEls.forEach(function(el){el.classList.remove('frozen');el.style.animationDelay=''});frozenEls=[];
-    if(iceLayer){var L=iceLayer;iceLayer=null;L.animate([{opacity:1},{opacity:0}],{duration:300}).onfinish=function(){L.remove()}}
+  /* ---------- ice: selection looks like ice — icicles grow under it, then the letters (only the letters) start to shiver ---------- */
+  var iceLayer=null,iceT=null,iced=[],iceTimers=[];
+  var DROP='polygon(10% 30%,50% 0%,90% 30%,90% 72%,50% 100%,10% 72%)';
+  function thaw(drop){
+    iceTimers.forEach(clearTimeout);iceTimers=[];
+    iced.forEach(function(o){o.p.classList.remove('iced');o.c.remove()});iced=[];          /* letters back at once */
+    if(!iceLayer)return;var L=iceLayer;iceLayer=null;
+    if(!drop){L.remove();return}
+    var long=0;
+    [].forEach.call(L.children,function(ic){                                                 /* icicles break off, turn into drops and fall */
+      var h=parseFloat(ic.style.height)||8,w=parseFloat(ic.style.width)||3,cur=getComputedStyle(ic).transform,dl=Math.random()*260,dur=650+Math.random()*450,fall=innerHeight*(.5+Math.random()*.4);
+      ic.getAnimations().forEach(function(an){an.cancel()});
+      var sy=cur&&cur!=='none'?new DOMMatrix(cur).d:1;if(sy<.05){ic.remove();return}
+      ic.animate([{transform:'translateY(0) scale(1,'+sy+')',clipPath:'polygon(0 0,50% 0,100% 0,75% 50%,50% 100%,25% 50%)',opacity:1},
+                  {transform:'translateY('+(h*.6)+'px) scale(.9,'+Math.min(sy,w*1.3/h)+')',clipPath:DROP,opacity:1,offset:.25},
+                  {transform:'translateY('+fall+'px) scale(.8,'+(w*1.5/h)+')',clipPath:DROP,opacity:0}],
+                 {duration:dur,delay:dl,easing:'cubic-bezier(.5,0,.9,.6)',fill:'forwards'});
+      long=Math.max(long,dl+dur);
+    });
+    setTimeout(function(){L.remove()},long+50);
   }
   function freeze(){
-    thaw();var sel=getSelection();if(!sel.rangeCount||sel.isCollapsed||spill)return;
-    var R=sel.getRangeAt(0),all=[],root=R.commonAncestorContainer.nodeType===1?R.commonAncestorContainer:R.commonAncestorContainer.parentNode;
+    var sel=getSelection();
+    if(!sel.rangeCount||sel.isCollapsed||spill){thaw(true);return}
+    thaw(false);
+    var R=sel.getRangeAt(0),all=[],nodes=[],root=R.commonAncestorContainer.nodeType===1?R.commonAncestorContainer:R.commonAncestorContainer.parentNode;
     var tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null),tn,sub=document.createRange();
-    while((tn=tw.nextNode())){if(!tn.data.trim()||!R.intersectsNode(tn))continue;
+    while((tn=tw.nextNode())){if(!tn.data.trim()||!R.intersectsNode(tn)||!tn.parentElement.closest('.view:not([hidden])'))continue;nodes.push(tn);
       sub.selectNodeContents(tn);if(tn===R.startContainer)sub.setStart(tn,R.startOffset);if(tn===R.endContainer)sub.setEnd(tn,R.endOffset);
       all.push.apply(all,[].slice.call(sub.getClientRects()))}
     var seen={},rects=all.filter(function(q){var k=Math.round(q.left)+','+Math.round(q.bottom)+','+Math.round(q.width);if(seen[k]||q.width<3||q.height<5)return false;seen[k]=1;return true});
     if(!rects.length)return;
     iceLayer=document.createElement('div');iceLayer.style.cssText='position:absolute;left:0;top:0;width:0;height:0;z-index:3;pointer-events:none';document.body.appendChild(iceLayer);
-    rects.forEach(function(q){
-      var n=Math.max(1,Math.round(q.width/6));
-      for(var i=0;i<n;i++){
-        var w=2+Math.random()*3.5,h=3+Math.pow(Math.random(),1.8)*16,x=q.left+(i+.5)*q.width/n+(Math.random()-.5)*3;
-        var ic=document.createElement('i');ic.className='icicle';
-        ic.style.cssText='left:'+(x-w/2+scrollX)+'px;top:'+(q.bottom+scrollY-.5)+'px;width:'+w+'px;height:'+h+'px';
-        iceLayer.appendChild(ic);
-        ic.animate([{transform:'scaleY(0)'},{transform:'scaleY(1)'}],{duration:1100+Math.random()*1600,delay:Math.random()*700,easing:'cubic-bezier(.3,.6,.3,1)',fill:'forwards'});
-      }
-    });
-    shiverT=setTimeout(function(){
-      document.querySelectorAll('.view:not([hidden]) .n,.view:not([hidden]) .p,.view:not([hidden]) .d,.view:not([hidden]) .meta a,.view:not([hidden]) .meta .grp span').forEach(function(el){
-        if(sel.containsNode(el,true)){el.classList.add('frozen');el.style.animationDelay=(-Math.random()*.13)+'s';frozenEls.push(el)}});
-    },500);
+    var L=iceLayer;
+    iceTimers.push(setTimeout(function(){                                                      /* 1. icicles, a moment later */
+      rects.forEach(function(q){
+        var n=Math.max(1,Math.round(q.width/6));
+        for(var i=0;i<n;i++){
+          var w=2+Math.random()*3.5,h=3+Math.pow(Math.random(),1.8)*16,x=q.left+(i+.5)*q.width/n+(Math.random()-.5)*3;
+          var ic=document.createElement('i');ic.className='icicle';
+          ic.style.cssText='left:'+(x-w/2+scrollX)+'px;top:'+(q.bottom+scrollY-.5)+'px;width:'+w+'px;height:'+h+'px';
+          L.appendChild(ic);
+          ic.animate([{transform:'scaleY(0)'},{transform:'scaleY(1)'}],{duration:1100+Math.random()*1600,delay:Math.random()*700,easing:'cubic-bezier(.3,.6,.3,1)',fill:'forwards'});
+        }
+      });
+    },500));
+    iceTimers.push(setTimeout(function(){                                                      /* 2. then the letters freeze and shiver */
+      var parents=[];
+      nodes.forEach(function(t){var p=t.parentElement;if(parents.indexOf(p)<0&&p.childNodes.length===1)parents.push(p)});
+      parents.forEach(function(p){
+        var cs=getComputedStyle(p),rg=document.createRange();rg.selectNodeContents(p);var q=rg.getBoundingClientRect();if(!q.width)return;
+        var c=document.createElement('span');c.className='icecopy frozen';c.textContent=p.textContent;
+        var lh=parseFloat(cs.lineHeight),fr=rg.getClientRects()[0]||q;if(isNaN(lh))lh=fr.height;
+        c.style.cssText+=';left:'+(q.left+scrollX)+'px;top:'+(q.top-(lh-fr.height)/2+scrollY)+'px;width:'+(q.width+1)+'px;font:'+cs.fontStyle+' '+cs.fontWeight+' '+cs.fontSize+'/'+cs.lineHeight+' '+cs.fontFamily+
+          ';letter-spacing:'+cs.letterSpacing+';color:'+cs.color+';opacity:'+cs.opacity+';white-space:'+(rg.getClientRects().length>1?'normal':'pre')+';animation-delay:'+(-Math.random()*.13)+'s';
+        L.appendChild(c);p.classList.add('iced');iced.push({p:p,c:c});
+      });
+    },2100));
   }
-  document.addEventListener('selectionchange',function(){clearTimeout(iceT);iceT=setTimeout(freeze,220)});
+  document.addEventListener('selectionchange',function(){clearTimeout(iceT);var sel=getSelection();if(!sel.rangeCount||sel.isCollapsed){thaw(true);return}iceT=setTimeout(freeze,220)});
   addEventListener('hashchange',function(){if(ball)goHome(true);if(spill)spillHome(true);if(running)finish(running);arm()});
   addEventListener('resize',function(){if(ball)ball.obs=obstacles()});
   arm();
