@@ -393,17 +393,18 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
   };
 
   /* ---------- sensors: tilt → gravity, shake → spill ---------- */
-  var G={x:0,y:1600},sensorsOn=false,gotOri=false,isIOS=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
+  var G={x:0,y:1600},sensorsOn=false,gotOri=false,isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),
+      needPerm=typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function';
   function sensors(){if(sensorsOn)return;sensorsOn=true;addEventListener('deviceorientation',tilt);addEventListener('devicemotion',motion)}
   function askSensors(){
-    if(isIOS){DeviceOrientationEvent.requestPermission().then(function(s){if(s==='granted')sensors()}).catch(function(){});
+    sensors();
+    if(needPerm){DeviceOrientationEvent.requestPermission().catch(function(){});
       if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function')DeviceMotionEvent.requestPermission().catch(function(){})}
-    else sensors();
   }
-  if(!isIOS)askSensors();
+  sensors();   /* listen right away: Android sends data without asking; iPhone stays silent until permission */
   /* iPhone: motion access can only be asked after a tap (Apple rule) — ask on the first tap on empty space */
   var askedIOS=false;
-  addEventListener('click',function(e){if(isIOS&&!askedIOS&&!sensorsOn&&!e.target.closest('a,button')){askedIOS=true;askSensors()}});
+  addEventListener('click',function(e){if(needPerm&&!askedIOS&&!e.target.closest('a,button')){askedIOS=true;askSensors()}});
   function setG(x,y){var a=((screen.orientation&&screen.orientation.angle)||window.orientation||0)*Math.PI/180,c=Math.cos(a),s=Math.sin(a);G.x=x*c+y*s;G.y=-x*s+y*c}
   function tilt(e){if(e.gamma==null||e.beta==null)return;gotOri=true;setG(Math.sin(e.gamma*Math.PI/180)*1600,Math.sin(e.beta*Math.PI/180)*1600)}
   var peaks=[],lastG=null,dbg=/[?&]sensors/.test(location.search)?{ori:0,mot:0,acc:0,jerk:0,beta:0,gamma:0,shakes:0}:null;
@@ -419,7 +420,7 @@ body.waking #v-home .rows,body.waking #v-home .meta .grp,body.waking #v-home .me
   if(dbg){var box=document.createElement('pre');box.style.cssText='position:fixed;left:8px;bottom:8px;z-index:9;margin:0;font:11px/1.4 monospace;color:var(--muted);pointer-events:none';document.body.appendChild(box);
     addEventListener('deviceorientation',function(e){dbg.ori++;dbg.beta=e.beta;dbg.gamma=e.gamma});
     setInterval(function(){box.textContent='orientation events: '+dbg.ori+'  beta '+(dbg.beta==null?'null':(+dbg.beta).toFixed(0))+'  gamma '+(dbg.gamma==null?'null':(+dbg.gamma).toFixed(0))+
-      '\nmotion events: '+dbg.mot+'  acc '+dbg.acc.toFixed(1)+'  jerk '+dbg.jerk.toFixed(1)+'\nshakes: '+dbg.shakes+'  sensors on: '+sensorsOn+'  ios: '+isIOS+'\ngravity: '+G.x.toFixed(0)+', '+G.y.toFixed(0)},250)}
+      '\nmotion events: '+dbg.mot+'  acc '+dbg.acc.toFixed(1)+'  jerk '+dbg.jerk.toFixed(1)+'\nshakes: '+dbg.shakes+'  sensors on: '+sensorsOn+'  ios: '+isIOS+'  perm: '+needPerm+'\ngravity: '+G.x.toFixed(0)+', '+G.y.toFixed(0)},250)}
   function onShake(){if(!onHome())return;if(spill){kick(500);return}spillStart(true)}
 
   /* ---------- godhost on the loose: double tap, tilt or drag; goes home by itself once it lies still ---------- */
